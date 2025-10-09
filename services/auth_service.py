@@ -81,7 +81,6 @@ def request_otp(db, identifier: str):
             db.rollback()
             raise OTPDeliveryFailedException(reason=str(e))
 
-        print(f"DEBUG OTP for {identifier}: {otp_code}")
         msg = "Account created. OTP sent." if new_user_created else "Login OTP sent."
         return {"message": msg}
 
@@ -107,7 +106,6 @@ def verify_otp_and_issue_tokens(db: Session, identifier: str, otp_code: str):
         ).first()
         if not user:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
         # --- verify OTP ---
         otp = (
             db.query(OTP)
@@ -123,6 +121,8 @@ def verify_otp_and_issue_tokens(db: Session, identifier: str, otp_code: str):
         if not otp:
             raise InvalidOTPException()
 
+        print(f"OTP verified for user -2: {user.id}")
+
         otp.is_used = True
         user.is_verified = True
 
@@ -137,6 +137,7 @@ def verify_otp_and_issue_tokens(db: Session, identifier: str, otp_code: str):
             .order_by(RefreshToken.expires_at.desc())
             .first()
         )
+        print(f"Existing refresh token: {existing_refresh}")
 
         if existing_refresh:
             refresh_token_str = existing_refresh.token
@@ -175,9 +176,6 @@ def verify_otp_and_issue_tokens(db: Session, identifier: str, otp_code: str):
         # rollback and bubble up unexpected errors to global handler
         db.rollback()
         raise
-    finally:
-        # ensure DB session is closed if manually managed
-        db.close()
 
 
 # ----------------------------------------

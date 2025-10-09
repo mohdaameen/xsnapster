@@ -1,6 +1,6 @@
 from slugify import slugify
 from sqlalchemy.orm import Session
-from models.products import Product
+from models.products import Product, ProductAnalytics
 from schemas.products import ProductCreate
 from datetime import datetime
 from sqlalchemy import desc
@@ -40,35 +40,109 @@ def create_product(db: Session, product_data: ProductCreate, image_links: list):
     return db_product
 
 
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import desc, asc
+from typing import Optional, Tuple, List
+from fastapi import HTTPException, status
 
-def get_all_products(
+SORTABLE_FIELDS = {
+    "price": Product.price,
+    "discounted_price": Product.discounted_price,
+    "created_at": Product.created_at,
+    "title": Product.title,
+    # Analytics fields
+    "view_count": ProductAnalytics.view_count,
+    "purchase_count": ProductAnalytics.purchase_count,
+    "rating": ProductAnalytics.rating,
+    "review_count": ProductAnalytics.review_count,
+    "stock_count": ProductAnalytics.stock_count,
+    "wishlist_count": ProductAnalytics.wishlist_count,
+}
+
+def get_products_paginated(
     db: Session,
-    category: str = None,
-    subcategory: str = None,
-    is_active: bool = True,
-    sort_by: str = None,
-    skip: int = 0,
-    limit: int = 20,
-):
-    query = db.query(Product)
+    page: int = 1,
+    limit: int = 10,
+    category: Optional[str] = None,
+    subcategory: Optional[str] = None,
+    search: Optional[str] = None,
+    is_active: Optional[bool] = True,
+    sort_by: Optional[str] = None,
+    sort_order: str = "asc",
+) -> Tuple[List[Product], int]:
+    """
+    Fetch paginated products with optional filters, sorting, and analytics included.
+    """
+    query = db.query(Product).options(joinedload(Product.analytics))
 
-    if category:
-        query = query.filter(Product.category == category)
-    if subcategory:
-        query = query.filter(Product.subcategory == subcategory)
     if is_active is not None:
         query = query.filter(Product.is_active == is_active)
+    if category:
+        query = query.filter(Product.category.ilike(f"%{category}%"))
+    if subcategory:
+        query = query.filter(Product.subcategory.ilike(f"%{subcategory}%"))
+    if search:
+        query = query.filter(Product.title.ilike(f"%{search}%"))
 
-    # Sorting
-    if sort_by == "price_asc":
-        query = query.order_by(Product.price.asc())
-    elif sort_by == "price_desc":
-        query = query.order_by(Product.price.desc())
-    elif sort_by == "rating":
-        query = query.join(Product.analytics).order_by(desc(Product.analytics.rating))
-    elif sort_by == "popularity":
-        query = query.join(Product.analytics).order_by(desc(Product.analytics.purchase_count))
-    else:
-        query = query.order_by(Product.created_at.desc())
+    # Apply sorting if valid
+    if sort_by in SORTABLE_FIELDS:
+        column = SORTABLE_FIELDS[sort_by]
+        if sort_order.lower() == "desc":
+            query = query.order_by(desc(column))
+        else:
+            query = query.order_by(asc(column))
 
-    return query.offset(skip).limit(limit).all()
+    total = query.count()
+    products = query.offset((page - 1) * limit).limit(limit).all()
+
+    return products, total
+
+
+
+def get_product_by_id(db: Session, product_id: int):
+    """
+    Fetch a product by ID, increase its view count, and return it.
+    Handles missing records and database errors gracefully.
+    """
+    try:
+        # Fetch product
+        product = (
+            db.query(Product)
+            .filter(Product.id == product_id, Product.is_active == True)
+            .first()
+        )
+
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Product with id {product_id} not found",
+            )
+
+        # Fetch analytics record for this product
+        analytics = (
+            db.query(ProductAnalytics)
+            .filter(ProductAnalytics.product_id == product_id)
+            .first()
+        )
+
+        # Create analytics row if it doesn't exist
+        if not analytics:
+            analytics = ProductAnalytics(product_id=product_id, view_count=1)
+            db.add(analytics)
+        else:
+            analytics.view_count += 1
+            analytics.updated_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(product)
+
+        return product
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unexpected error while fetching product: {str(e)}",
+        )

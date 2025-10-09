@@ -1,13 +1,14 @@
-from fastapi import APIRouter, Depends, Response, Request, HTTPException, status, Body
+from fastapi import APIRouter, Depends, Response, Request, HTTPException, status, Body, Query
 from sqlalchemy.orm import Session
 from db.session import get_db
 from services.auth_service import request_otp, verify_otp_and_issue_tokens, refresh_tokens
-from schemas.products import ProductCreate, ProductResponse
+from schemas.products import ProductCreate, ProductResponse, PaginatedProducts
 from typing import List, Optional
 from fastapi import Form
 from fastapi import UploadFile, File
-from services.product_service import create_product
+from services.product_service import create_product, get_products_paginated, get_product_by_id
 from services.s3_service import s3_service
+
 
 
 router = APIRouter(prefix="/v1/products", tags=["Products"])
@@ -63,3 +64,47 @@ async def add_product(
 
     return product
 
+
+
+
+@router.get("/", response_model=PaginatedProducts)
+def list_products(
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    category: Optional[str] = None,
+    subcategory: Optional[str] = None,
+    search: Optional[str] = None,
+    is_active: Optional[bool] = True,
+    sort_by: Optional[str] = Query(None, description="Field to sort by: price, created_at, title, discounted_price"),
+    sort_order: str = Query("asc", regex="^(asc|desc)$", description="Sort order: asc or desc"),
+):
+    products, total = get_products_paginated(
+        db=db,
+        page=page,
+        limit=limit,
+        category=category,
+        subcategory=subcategory,
+        search=search,
+        is_active=is_active,
+        sort_by=sort_by,
+        sort_order=sort_order,
+    )
+
+    return {
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "pages": (total + limit - 1) // limit,
+        "data": products,
+    }
+
+
+@router.get("/{product_id}", response_model=ProductResponse)
+def get_product(product_id: int, db: Session = Depends(get_db)):
+    """
+    API endpoint to get a product by ID.
+    Logic is delegated to helper function.
+    """
+    product = get_product_by_id(db, product_id)
+    return product

@@ -50,21 +50,13 @@ class ProductAnalyticsSchema(BaseModel):
     class Config:
         from_attributes = True
 
-class ProductSchema(BaseModel):
-    id: int
-    title: str
-    slug: str
-    one_liner: Optional[str]
-    description: Optional[str]
-    image_links: Optional[List[str]]
-    price: float
-    discounted_price: Optional[float]
-    category: Optional[str]
-    subcategory: Optional[str]
-    dimensions: Optional[str]
-    is_active: bool
-    analytics: Optional[ProductAnalyticsSchema]
+
+class PaginatedProducts(BaseModel):
+    page: int
+    limit: int
+    total: int
+    pages: int
+    data: List[ProductResponse]  # list of products
 
     class Config:
         from_attributes = True
-

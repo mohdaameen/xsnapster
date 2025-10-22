@@ -3,7 +3,7 @@ from db.base import Base
 from db.session import db, get_db
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
-from api.routes.v1 import auth, products
+from api.routes.v1 import auth, products, users, category, address
 from core.error_handlers import setup_exception_handlers
 
 
@@ -27,7 +27,11 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(products.router)
+app.include_router(users.router)
+app.include_router(category.category_router)
+app.include_router(category.subcategory_router)
+app.include_router(address.router)
 
-@app.get("/")
+@app.get("/", tags=["Root"])
 def root():
     return {"message": "xSnapster API is running 🚀"}

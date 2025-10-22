@@ -1,5 +1,5 @@
 from datetime import datetime, timezone, timedelta
-from fastapi import HTTPException, status, Request
+from fastapi import HTTPException, status, Request, Response
 from sqlalchemy.orm import Session
 from models.users import User
 from models.users import OTP
@@ -12,6 +12,9 @@ from core.exceptions import (
     OTPDeliveryFailedException,
     DatabaseOperationException,
     InvalidOTPException,
+    LogoutFailedException,
+    InvalidRefreshTokenException,
+    TokenNotFoundException,
 )
 import uuid
 from core.config import settings
@@ -224,3 +227,47 @@ def refresh_tokens(request: Request, db: Session):
         raise DatabaseOperationException()
 
     return new_access, new_refresh, user
+
+from fastapi import Request, Response
+from sqlalchemy.orm import Session
+from models.users import User
+from models.refresh_token import RefreshToken
+from core.exceptions import (
+    LogoutFailedException,
+    TokenNotFoundException,
+)
+from core.security import get_current_user
+
+def logout_user(response: Response, db: Session, current_user: User):
+    """
+    Helper function to log out the current user by revoking all refresh tokens.
+    """
+
+    try:
+        # Fetch all active refresh tokens for the user
+        active_tokens = db.query(RefreshToken).filter(
+            RefreshToken.user_id == current_user.id,
+            RefreshToken.is_revoked == False
+        ).all()
+
+        if not active_tokens:
+            raise TokenNotFoundException()
+
+        # Revoke all tokens
+        for token in active_tokens:
+            token.is_revoked = True
+            db.add(token)
+        db.commit()
+
+        # Clear refresh token cookie
+        response.delete_cookie("refresh_token")
+
+        return {"success": True, "message": "User logged out successfully."}
+
+    except TokenNotFoundException:
+        raise  # propagate known exception for FastAPI handler
+
+    except Exception as e:
+        db.rollback()
+        print(f"Logout failed: {e}")
+        raise LogoutFailedException()

@@ -28,3 +28,27 @@ class InvalidOTPException(HTTPException):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired OTP"
         )
+
+
+class LogoutFailedException(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to log out. Please try again later."
+        )
+
+
+class InvalidRefreshTokenException(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or missing refresh token."
+        )
+
+class TokenNotFoundException(HTTPException):
+    def __init__(self):
+        super().__init__(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Refresh token not found or already revoked."
+        )
+

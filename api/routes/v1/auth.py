@@ -1,14 +1,17 @@
 from fastapi import APIRouter, Depends, Response, Request
 from sqlalchemy.orm import Session
 from db.session import get_db
-from services.auth_service import request_otp, verify_otp_and_issue_tokens, refresh_tokens
+from services.auth_service import request_otp, verify_otp_and_issue_tokens, refresh_tokens, logout_user
 from schemas.auth import RequestOTP, OTPVerifyRequest, AuthResponse
+from core.security import get_current_user
+from models.users import User
 
 router = APIRouter(prefix="/v1/auth", tags=["Auth"])
 
 # 1️⃣ Request OTP
 @router.post("/request-otp")
 def request_otp_route(payload: RequestOTP, db: Session = Depends(get_db)):
+    print( "Requesting OTP for identifier:", payload.identifier)
     return request_otp(db, payload.identifier)
 
 
@@ -62,3 +65,11 @@ def refresh_token_route(request: Request, response: Response, db: Session = Depe
             "phone_number": user.phone_number,
         },
     }
+
+@router.post("/logout")
+def logout_route(
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    return logout_user(response, db, current_user)

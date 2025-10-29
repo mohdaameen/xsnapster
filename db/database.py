@@ -5,7 +5,7 @@ from db.base import Base
 
 class Database:
     def __init__(self, db_url: str):
-        self.engine = create_engine(db_url)
+        self.engine = create_engine(db_url, pool_pre_ping=True, pool_recycle=3600)
         self.SessionLocal = sessionmaker(
             autocommit=False, autoflush=False, bind=self.engine
         )

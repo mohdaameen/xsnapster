@@ -109,6 +109,14 @@ def list_products_by_category(category_id: int, db: Session = Depends(get_db)):
     """
     return get_products_by_category(db=db, category_id=category_id)
 
+
+@router.get("/subcategory/{subcategory_id}", response_model=list)
+def list_products_by_subcategory(subcategory_id: int, db: Session = Depends(get_db)):
+    """
+    List all active products for a specific subcategory.
+    """
+    return get_products_by_subcategory(db=db, subcategory_id=subcategory_id)
+
 @router.get("/{product_id}", response_model=ProductResponse)
 def get_product(product_id: int, db: Session = Depends(get_db)):
     """

@@ -20,8 +20,6 @@ def add_category(
     return category
 
 
-
-
 @category_router.get("/")
 def list_categories(db: Session = Depends(get_db)):
     return get_all_categories(db)
@@ -101,3 +99,5 @@ def edit_subcategory(
 @subcategory_router.delete("/{subcategory_id}")
 def remove_subcategory(subcategory_id: int, db: Session = Depends(get_db)):
     return delete_subcategory(db, subcategory_id)
+
+

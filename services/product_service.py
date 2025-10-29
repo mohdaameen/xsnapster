@@ -219,6 +219,50 @@ def get_products_by_category(db: Session, category_id: int):
 
     return result
 
+def get_products_by_subcategory(db: Session, subcategory_id: int):
+    """
+    Fetch all active products of a given subcategory including variations and category names.
+    """
+    subcategory = db.query(SubCategory).filter(SubCategory.id == subcategory_id).first()
+    if not subcategory:
+        raise HTTPException(status_code=404, detail=f"Subcategory with id {subcategory_id} not found")
+
+    products = (
+        db.query(Product)
+        .filter(Product.subcategory_id == subcategory_id, Product.is_active == True)
+        .order_by(Product.created_at.desc())
+        .all()
+    )
+
+    result = []
+    for p in products:
+        variations = [
+            {
+                "dimension": dim.dimension,
+                "price": dim.price,
+                "discounted_price": dim.discounted_price
+            }
+            for dim in p.dimensions_rel
+        ]
+
+        category_name = p.category_rel.name if p.category_rel else None
+
+        result.append({
+            "id": p.id,
+            "title": p.title,
+            "one_liner": p.one_liner,
+            "description": p.description,
+            "slug": p.slug,
+            "image_links": p.image_links or [],
+            "category": category_name,
+            "subcategory": subcategory.name,
+            "dimensions": variations,
+            "is_active": p.is_active,
+            "created_at": p.created_at,
+            "updated_at": p.updated_at
+        })
+
+    return result
 
 def update_product(db: Session, product_id: int, update_data: dict):
     """

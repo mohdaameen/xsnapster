@@ -61,6 +61,7 @@ class Category(Base):
     name = Column(String(100), unique=True, nullable=False)
     slug = Column(String(100), unique=True, nullable=False)
     one_liner = Column(String(255), nullable=True)
+    image_links = Column(ARRAY(String), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 

@@ -162,7 +162,7 @@ def get_top_products_by_category(db: Session, limit_per_category: int = 4):
                     "title": p.title,
                     "one_liner": p.one_liner,
                     "slug": p.slug,
-                    "image_links": p.image_links or [],
+                    "image_link": p.image_links[0] or "",
                     "view_count": p.analytics.view_count if p.analytics else 0
                 }
                 for p in products
@@ -208,7 +208,7 @@ def get_products_by_category(db: Session, category_id: int):
             "one_liner": p.one_liner,
             "description": p.description,
             "slug": p.slug,
-            "image_links": p.image_links or [],
+            "image_link": p.image_links[0] or "",
             "category": category.name,
             "subcategory": subcategory_name,
             "dimensions": variations,
@@ -253,7 +253,7 @@ def get_products_by_subcategory(db: Session, subcategory_id: int):
             "one_liner": p.one_liner,
             "description": p.description,
             "slug": p.slug,
-            "image_links": p.image_links or [],
+            "image_link": p.image_links[0] or "",
             "category": category_name,
             "subcategory": subcategory.name,
             "dimensions": variations,

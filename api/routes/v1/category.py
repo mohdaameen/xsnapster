@@ -1,23 +1,35 @@
-from fastapi import APIRouter, HTTPException, Form, Depends
+from fastapi import APIRouter, HTTPException, Form, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 from slugify import slugify
 from models.products import Category
 from db.session import get_db
 from services.category_service import *
-from typing import Optional
+from typing import Optional, List
 
 
 category_router = APIRouter(prefix="/v1/category", tags=["Category"])
 
 
 @category_router.post("/")
-def add_category(
+async def add_category(
     name: str = Form(...),
     one_liner: Optional[str] = Form(None),
+    images: List[UploadFile] = File([]),
     db: Session = Depends(get_db)
 ):
-    category = create_or_get_category(db, name=name, one_liner=one_liner)
+    image_links = []
+    for image in images:
+        try:
+            await image.seek(0)
+            url = await s3_service.upload_image(image)
+            image_links.append(url)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to upload {image.filename}: {str(e)}")
+
+    category = create_or_get_category(db, name=name, one_liner=one_liner, image_links=image_links)
     return category
+
+
 
 
 @category_router.get("/")

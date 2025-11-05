@@ -9,7 +9,8 @@ def create_or_get_category(
     db: Session,
     category_id: Optional[int] = None,
     name: Optional[str] = None,
-    one_liner: Optional[str] = None
+    one_liner: Optional[str] = None,
+    image_links: Optional[List[str]] = None
 ) -> Category:
     """
     Get a category by ID or name, or create it if it doesn’t exist.
@@ -30,7 +31,7 @@ def create_or_get_category(
     category = db.query(Category).filter(Category.slug == slug).first()
 
     if not category:
-        category = Category(name=name.strip(), slug=slug, one_liner=one_liner)
+        category = Category(name=name.strip(), slug=slug, one_liner=one_liner, images=image_links or [])
         db.add(category)
         db.commit()
         db.refresh(category)

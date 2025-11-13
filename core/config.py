@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     AWS_REGION: str
     SUPABASE_STORAGE_URL: str
 
+    RAZORPAY_KEY_ID: str
+    RAZORPAY_KEY_SECRET: str
+
 
 
     class Config:

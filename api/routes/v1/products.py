@@ -6,8 +6,6 @@ from schemas.products import ProductCreate, ProductResponse, PaginatedProducts
 from typing import List, Optional
 from services.product_service import *
 from services.s3_service import s3_service
-from schemas.products import ProductVariationsCreate
-
 
 
 router = APIRouter(prefix="/v1/products", tags=["Products"])
@@ -21,7 +19,10 @@ async def add_product(
     category_id: int = Form(...),
     subcategory_id: int = Form(...),
     images: List[UploadFile] = File([]),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    price: float = Form(...),
+    discounted_price: Optional[float] = Form(None),
+    dimensions: List[str] = Form([])
 ):
     # --- Upload images ---
     image_links = []
@@ -40,6 +41,9 @@ async def add_product(
         description=description,
         category_id=category_id,
         subcategory_id=subcategory_id,
+        price=price,
+        discounted_price=discounted_price,
+        dimensions=dimensions
     )
 
     # --- Create product ---
@@ -50,17 +54,12 @@ async def add_product(
         "product_id": product.id,
         "slug": product.slug,
         "category_id": category_id,
-        "subcategory_id": subcategory_id
-    }
+        "subcategory_id": subcategory_id,
+        "images_uploaded": len(image_links),
+        "price": price,
+        "discounted_price": discounted_price
 
-@router.post("/{product_id}/variations", response_model=dict)
-async def add_product_variation(
-    product_id: int,
-    payload: ProductVariationsCreate = Body(...),
-    db: Session = Depends(get_db)
-):
-    add_product_variations(db=db, product_id=product_id, variations=payload.variations)
-    return {"message": f"{len(payload.variations)} variations added to product {product_id}"}
+    }
 
 # @router.get("/", response_model=PaginatedProducts)
 # def list_products(

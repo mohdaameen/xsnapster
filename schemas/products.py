@@ -10,6 +10,9 @@ class ProductBase(BaseModel):
     category_id: Optional[int] = None
     subcategory_id: Optional[int] = None
     slug: Optional[str] = None  
+    price: float
+    discounted_price: Optional[float] = None
+    dimensions: Optional[List[str]] = []
 
 class ProductCreate(ProductBase):
     pass
@@ -35,13 +38,7 @@ class ProductAnalyticsSchema(BaseModel):
 
 
 
-class ProductVariationItem(BaseModel):
-    dimension: str
-    price: float
-    discounted_price: Optional[float] = None
 
-class ProductVariationsCreate(BaseModel):
-    variations: List[ProductVariationItem]
 
 
 class ProductResponse(BaseModel):
@@ -54,7 +51,6 @@ class ProductResponse(BaseModel):
     discounted_price: Optional[float]
     category: Optional[str]
     subcategory: Optional[str]
-    dimensions: List[ProductVariationItem] = []
     slug: Optional[str]
     is_active: bool
     created_at: datetime

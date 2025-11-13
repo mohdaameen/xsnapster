@@ -8,3 +8,5 @@ Pyjwt==2.10.1
 boto3==1.40.47
 pillow==11.3.0
 python-multipart==0.0.20
+razorpay==2.0.0
+

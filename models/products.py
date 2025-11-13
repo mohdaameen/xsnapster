@@ -94,6 +94,14 @@ class Product(Base):
     one_liner = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)
     image_links = Column(ARRAY(String), nullable=True)
+    
+    # ✅ Base price for the product (can be overridden dynamically)
+    price = Column(Float, nullable=False)
+    discounted_price = Column(Float, nullable=True)
+    
+    # ✅ Dimensions stored as JSON or ARRAY (e.g. ["S", "M", "L"] or [{"size": "S"}, {"size": "M"}])
+    dimensions = Column(ARRAY(String), nullable=True)
+
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Category relationships
@@ -107,26 +115,10 @@ class Product(Base):
     category_rel = relationship("Category", back_populates="products")
     subcategory_rel = relationship("SubCategory", back_populates="products")
     analytics = relationship("ProductAnalytics", back_populates="product", uselist=False)
-    dimensions_rel = relationship("ProductDimension", back_populates="product", cascade="all, delete-orphan")
+    orders = relationship("Order", back_populates="product")
 
-
-# ========================
-# PRODUCT DIMENSIONS (variant-specific pricing)
-# ========================
-
-class ProductDimension(Base):
-    __tablename__ = "product_dimensions"
-
-    id = Column(Integer, primary_key=True, index=True)
-    product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
-    dimension = Column(String(100), nullable=False)  # e.g., "S", "M", "L" or "10x20x15 cm"
-    price = Column(Float, nullable=False)
-    discounted_price = Column(Float, nullable=True)
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-    product = relationship("Product", back_populates="dimensions_rel")
+    def __repr__(self):
+        return f"<Product(title='{self.title}', price={self.price}, dimensions={self.dimensions})>"
 
 
 # ========================

@@ -5,6 +5,9 @@ from models.products import Category
 from db.session import get_db
 from services.category_service import *
 from typing import Optional, List
+from services.s3_service import s3_service
+
+
 
 
 category_router = APIRouter(prefix="/v1/category", tags=["Category"])
@@ -58,11 +61,12 @@ def remove_category(category_id: int, db: Session = Depends(get_db)):
 subcategory_router = APIRouter(prefix="/v1/subcategory", tags=["SubCategory"])
 
 @subcategory_router.post("/")
-def add_subcategories(
+async def add_subcategories(
     category_id: Optional[int] = Form(None),
     category_name: Optional[str] = Form(None),
     category_one_liner: Optional[str] = Form(None),
     subcategory_names: List[str] = Form(...),
+    images: Optional[List[UploadFile]] = File(None),
     db: Session = Depends(get_db),
 ):
     """
@@ -73,11 +77,25 @@ def add_subcategories(
     if not category_id and not category_name:
         raise HTTPException(status_code=400, detail="Either category_id or category_name is required")
 
+     
+    image_links = []
+    for image in images:
+        try:
+            await image.seek(0)
+            url = await s3_service.upload_image(image)
+            image_links.append(url)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to upload {image.filename}: {str(e)}")
+
+    print(image_links)
+
+
     category = create_or_get_category(
         db=db,
         category_id=category_id,
         name=category_name,
-        one_liner=category_one_liner
+        one_liner=category_one_liner,
+        image_links=image_links
     )
 
     subcategories = create_multiple_subcategories(

@@ -31,7 +31,7 @@ def create_or_get_category(
     category = db.query(Category).filter(Category.slug == slug).first()
 
     if not category:
-        category = Category(name=name.strip(), slug=slug, one_liner=one_liner, images=image_links or [])
+        category = Category(name=name.strip(), slug=slug, one_liner=one_liner, image_links=image_links or [])
         db.add(category)
         db.commit()
         db.refresh(category)

@@ -8,6 +8,8 @@ import mimetypes
 import os
 from PIL import Image
 import io
+from botocore.config import Config
+
 
 from core.config import settings
 
@@ -26,13 +28,14 @@ class S3Service:
                 endpoint_url=settings.SUPABASE_STORAGE_URL
             )
             self.bucket_name = settings.S3_BUCKET_NAME
-            self.bucket_url = "https://ltqgrulfvenqfcqwuxot.supabase.co/storage/v1/object/public/xsnapster_product_images"
+            self.bucket_url = "https://khnbsjuczeylcjrlrtni.storage.supabase.co/storage/v1/object/public/xsnapster"
             logger.info("Supabase S3-compatible client initialized successfully")
 
             
         except Exception as e:
             logger.error(f"Failed to initialize S3 client: {str(e)}")
             raise HTTPException(status_code=500, detail="S3 service initialization failed")
+
 
     
 

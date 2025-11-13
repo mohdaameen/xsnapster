@@ -1,6 +1,6 @@
 from slugify import slugify
 from sqlalchemy.orm import Session
-from models.products import Product, ProductAnalytics, Category, SubCategory, ProductDimension
+from models.products import Product, ProductAnalytics, Category, SubCategory
 from schemas.products import ProductCreate
 from datetime import datetime
 from sqlalchemy import desc
@@ -49,6 +49,9 @@ def create_product(db: Session, product_data, image_links: list):
         is_active=True,
         category_id=category.id,
         subcategory_id=subcategory.id,
+        price=product_data.price,
+        discounted_price=product_data.discounted_price,
+        dimensions=product_data.dimensions, 
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
@@ -58,39 +61,27 @@ def create_product(db: Session, product_data, image_links: list):
 
     return db_product
 
-def add_product_variations(db: Session, product_id: int, variations: List):
-    """
-    Add variations (dimensions with prices) to a product.
-    """
-    product = db.query(Product).filter(Product.id == product_id).first()
-    if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
 
-    for item in variations:
-        db_dim = ProductDimension(
-            product_id=product.id,
-            dimension=item.dimension,
-            price=item.price,
-            discounted_price=item.discounted_price
-        )
-        db.add(db_dim)
-
-    db.commit()
 
 
 
 def get_product_by_id(db: Session, product_id: int):
     """
-    Fetch a product by ID, include its variations, category and subcategory names,
+    Fetch a product by ID, include its variations (dimensions), category and subcategory names,
     increase view count, and return structured data.
     """
-    product = db.query(Product).filter(Product.id == product_id, Product.is_active == True).first()
+    # Fetch product
+    product = db.query(Product).filter(
+        Product.id == product_id,
+        Product.is_active == True
+    ).first()
     if not product:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Product with id {product_id} not found",
         )
 
+    # Update analytics (view count)
     analytics = db.query(ProductAnalytics).filter(ProductAnalytics.product_id == product_id).first()
     if not analytics:
         analytics = ProductAnalytics(product_id=product_id, view_count=1)
@@ -98,21 +89,23 @@ def get_product_by_id(db: Session, product_id: int):
     else:
         analytics.view_count += 1
         analytics.updated_at = datetime.utcnow()
-
     db.commit()
-    db.refresh(product)
 
-    variations = [
-        {
+    # Build variations list
+    variations = []
+    for dim in product.dimensions_rel:
+        variations.append({
+            "dimension_id": dim.id,
             "dimension": dim.dimension,
-            "price": dim.price,
-            "discounted_price": dim.discounted_price
-        }
-        for dim in product.dimensions_rel
-    ]
+            "price": float(dim.price),
+            "discounted_price": float(dim.discounted_price) if dim.discounted_price is not None else None
+        })
 
-    category_name = product.category_rel.name if product.category_rel else None
-    subcategory_name = product.subcategory_rel.name if product.subcategory_rel else None
+    # Top-level price defaults to first variation
+    selected_price = variations[0]["price"] if variations else 0
+    selected_discounted_price = variations[0]["discounted_price"] if variations else None
+
+    print(variations)
 
     response = {
         "id": product.id,
@@ -120,10 +113,10 @@ def get_product_by_id(db: Session, product_id: int):
         "one_liner": product.one_liner,
         "description": product.description,
         "image_links": product.image_links or [],
-        "price": variations[0]["price"] if variations else 0,
-        "discounted_price": variations[0]["discounted_price"] if variations else None,
-        "category": category_name,
-        "subcategory": subcategory_name,
+        "price": selected_price,
+        "discounted_price": selected_discounted_price,
+        "category": product.category_rel.name if product.category_rel else None,
+        "subcategory": product.subcategory_rel.name if product.subcategory_rel else None,
         "dimensions": variations,
         "slug": product.slug,
         "is_active": product.is_active,
@@ -236,14 +229,7 @@ def get_products_by_subcategory(db: Session, subcategory_id: int):
 
     result = []
     for p in products:
-        variations = [
-            {
-                "dimension": dim.dimension,
-                "price": dim.price,
-                "discounted_price": dim.discounted_price
-            }
-            for dim in p.dimensions_rel
-        ]
+        
 
         category_name = p.category_rel.name if p.category_rel else None
 
@@ -256,7 +242,6 @@ def get_products_by_subcategory(db: Session, subcategory_id: int):
             "image_link": p.image_links[0] or "",
             "category": category_name,
             "subcategory": subcategory.name,
-            "dimensions": variations,
             "is_active": p.is_active,
             "created_at": p.created_at,
             "updated_at": p.updated_at
@@ -291,7 +276,6 @@ def delete_product(db: Session, product_id: int):
     if not product:
         raise HTTPException(status_code=404, detail=f"Product with id {product_id} not found")
 
-    db.query(ProductDimension).filter(ProductDimension.product_id == product_id).delete()
     db.delete(product)
     db.commit()
     return {"message": f"Product {product.title} deleted successfully"}

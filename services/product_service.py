@@ -5,6 +5,8 @@ from schemas.products import ProductCreate
 from datetime import datetime
 from sqlalchemy import desc
 from typing import Optional, List
+from utils.pricing import calculate_dimension_pricing_db
+
 
 
 
@@ -91,21 +93,18 @@ def get_product_by_id(db: Session, product_id: int):
         analytics.updated_at = datetime.utcnow()
     db.commit()
 
-    # Build variations list
-    variations = []
-    for dim in product.dimensions_rel:
-        variations.append({
-            "dimension_id": dim.id,
-            "dimension": dim.dimension,
-            "price": float(dim.price),
-            "discounted_price": float(dim.discounted_price) if dim.discounted_price is not None else None
-        })
+
+    dimension_pricing = calculate_dimension_pricing_db(
+        db,
+        product.dimensions or [],
+        product.price,
+        product.discounted_price
+    )
+
+
 
     # Top-level price defaults to first variation
-    selected_price = variations[0]["price"] if variations else 0
-    selected_discounted_price = variations[0]["discounted_price"] if variations else None
 
-    print(variations)
 
     response = {
         "id": product.id,
@@ -113,11 +112,12 @@ def get_product_by_id(db: Session, product_id: int):
         "one_liner": product.one_liner,
         "description": product.description,
         "image_links": product.image_links or [],
-        "price": selected_price,
-        "discounted_price": selected_discounted_price,
+        "price": product.price,
+        "discounted_price": product.discounted_price,
         "category": product.category_rel.name if product.category_rel else None,
         "subcategory": product.subcategory_rel.name if product.subcategory_rel else None,
-        "dimensions": variations,
+        "dimensions": product.dimensions,
+        "dimension_pricing": dimension_pricing,
         "slug": product.slug,
         "is_active": product.is_active,
         "created_at": product.created_at,
@@ -156,7 +156,11 @@ def get_top_products_by_category(db: Session, limit_per_category: int = 4):
                     "one_liner": p.one_liner,
                     "slug": p.slug,
                     "image_link": p.image_links[0] or "",
-                    "view_count": p.analytics.view_count if p.analytics else 0
+                    "view_count": p.analytics.view_count if p.analytics else 0,
+                    "price": p.price,
+                    "discounted_price": p.discounted_price,
+                    "subcategory": p.subcategory_rel.name if p.subcategory_rel else ""
+                    
                 }
                 for p in products
             ]
@@ -184,14 +188,7 @@ def get_products_by_category(db: Session, category_id: int):
 
     result = []
     for p in products:
-        variations = [
-            {
-                "dimension": dim.dimension,
-                "price": dim.price,
-                "discounted_price": dim.discounted_price
-            }
-            for dim in p.dimensions_rel
-        ]
+        
 
         subcategory_name = p.subcategory_rel.name if p.subcategory_rel else None
 
@@ -204,10 +201,12 @@ def get_products_by_category(db: Session, category_id: int):
             "image_link": p.image_links[0] or "",
             "category": category.name,
             "subcategory": subcategory_name,
-            "dimensions": variations,
+            "dimensions": p.dimensions,
             "is_active": p.is_active,
             "created_at": p.created_at,
-            "updated_at": p.updated_at
+            "updated_at": p.updated_at,
+            "price": p.price,
+            "discounted_price": p.discounted_price
         })
 
     return result
@@ -244,7 +243,10 @@ def get_products_by_subcategory(db: Session, subcategory_id: int):
             "subcategory": subcategory.name,
             "is_active": p.is_active,
             "created_at": p.created_at,
-            "updated_at": p.updated_at
+            "updated_at": p.updated_at,
+            "dimensions": p.dimensions,
+            "price": p.price,
+            "discounted_price": p.discounted_price
         })
 
     return result

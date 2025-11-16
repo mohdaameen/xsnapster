@@ -55,6 +55,8 @@ class ProductResponse(BaseModel):
     is_active: bool
     created_at: datetime
     updated_at: datetime
+    dimensions: Optional[List[str]] = []
+    dimension_pricing: Optional[dict] = None
 
     class Config:
         from_attributes = True 

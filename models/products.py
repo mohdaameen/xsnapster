@@ -114,7 +114,7 @@ class Product(Base):
     # Relationships
     category_rel = relationship("Category", back_populates="products")
     subcategory_rel = relationship("SubCategory", back_populates="products")
-    analytics = relationship("ProductAnalytics", back_populates="product", uselist=False)
+    analytics = relationship("ProductAnalytics", back_populates="product", uselist=False, passive_deletes=True)    
     orders = relationship("Order", back_populates="product")
 
     def __repr__(self):
@@ -143,3 +143,13 @@ class ProductAnalytics(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     product = relationship("Product", back_populates="analytics")
+
+
+
+
+class DimensionPricing(Base):
+    __tablename__ = "dimension_pricing"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(50), unique=True, nullable=False)  # e.g. "A4", "A3", "Poster"
+    multiplier = Column(Float, nullable=False, default=1.0)  # e.g. 1.2 = +20%

@@ -159,6 +159,7 @@ def get_top_products_by_category(db: Session, limit_per_category: int = 4):
                     "view_count": p.analytics.view_count if p.analytics else 0,
                     "price": p.price,
                     "discounted_price": p.discounted_price,
+                    "category": category.name,
                     "subcategory": p.subcategory_rel.name if p.subcategory_rel else ""
                     
                 }
